@@ -10,6 +10,7 @@ const RobotHeartbeat = require("./RobotHeartbeat");
 const DesafioConfig = require("./DesafioConfig");
 const LiveSession = require("./LiveSession");
 const ScheduledSession = require("./ScheduledSession");
+const QuestionAttempt = require("./QuestionAttempt");
 
 // Relaciones
 Student.hasMany(Session, { foreignKey: "studentId" });
@@ -109,5 +110,6 @@ module.exports = {
   DesafioConfig,
   LiveSession,
   ScheduledSession,
+  QuestionAttempt,
   initModels,
 };

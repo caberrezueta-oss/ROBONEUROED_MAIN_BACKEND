@@ -9,6 +9,9 @@ const {
   getPauseFlag,
   setPauseFlag,
   getLiveSession,
+  sendQuestionToRobot,
+  getPendingQuestion,
+  submitAnswer,
 } = require("../controllers/robot.controller");
 const { requireAuth } = require("../middleware/auth");
 
@@ -21,10 +24,13 @@ router.post("/session/start", startLiveSession);
 router.post("/session/update", updateLiveSession);
 router.post("/session/end", endLiveSession);
 router.get("/session/pause-flag", getPauseFlag);
+router.get("/question", getPendingQuestion);
+router.post("/question/answer", submitAnswer);
 
 // --- Frontend (requiere login) ---
 router.get("/status", requireAuth, getRobotStatus);
 router.get("/session/live", requireAuth, getLiveSession);
 router.put("/session/pause", requireAuth, setPauseFlag);
+router.post("/question/send", requireAuth, sendQuestionToRobot);
 
 module.exports = router;

@@ -1,4 +1,4 @@
-const { RobotHeartbeat, LiveSession, Student, SystemConfig, Session } = require("../models");
+const { RobotHeartbeat, LiveSession, Student, SystemConfig, Session, QuestionAttempt, Question } = require("../models");
 const { resolveActiveDesafio } = require("./questions.controller");
 const asyncHandler = require("../utils/asyncHandler");
 const { capitalizeWords } = require("../utils/textFormat");
@@ -214,6 +214,90 @@ const getLiveSession = asyncHandler(async (req, res) => {
   res.json(live);
 });
 
+// --- PREGUNTA / RESPUESTA EN PANTALLA DEL ROBOT --------------------------
+
+// El profesor manda una pregunta desde la web a un estudiante específico.
+const sendQuestionToRobot = asyncHandler(async (req, res) => {
+  const { studentId, studentName, questionId, text, options, answer } = req.body || {};
+
+  if (!studentName) return res.status(400).json({ error: "studentName es obligatorio." });
+
+  let questionText = text;
+  let questionOptions = options;
+  let correctAnswer = answer;
+
+  // Si viene questionId, se usa el banco de preguntas en vez de texto libre
+  if (questionId) {
+    const q = await Question.findByPk(questionId);
+    if (!q) return res.status(404).json({ error: "Pregunta no encontrada en el banco." });
+    questionText = q.text;
+    questionOptions = q.options;
+    correctAnswer = q.answer;
+  }
+
+  if (!questionText || !correctAnswer || !Array.isArray(questionOptions) || questionOptions.length < 2) {
+    return res.status(400).json({ error: "Faltan datos de la pregunta (texto, opciones o respuesta)." });
+  }
+
+  const attempt = await QuestionAttempt.create({
+    studentId: studentId || null,
+    studentName: capitalizeWords(studentName),
+    questionId: questionId || null,
+    questionText,
+    options: questionOptions,
+    correctAnswer,
+    status: "pending",
+    sentAt: new Date(),
+  });
+
+  res.status(201).json(attempt);
+});
+
+// El ESP32 consulta si hay una pregunta pendiente para mostrar.
+const getPendingQuestion = asyncHandler(async (req, res) => {
+  if (!checkDeviceKey(req)) return res.status(401).json({ error: "Clave de dispositivo inválida." });
+
+  const attempt = await QuestionAttempt.findOne({
+    where: { status: "pending" },
+    order: [["id", "DESC"]],
+  });
+
+  if (!attempt) return res.json({ available: false });
+
+  res.json({
+    available: true,
+    attemptId: attempt.id,
+    studentId: attempt.studentId,
+    studentName: attempt.studentName,
+    question: attempt.questionText,
+    options: attempt.options,
+  });
+});
+
+// El ESP32 manda la respuesta del estudiante; queda registrada en la BD.
+const submitAnswer = asyncHandler(async (req, res) => {
+  if (!checkDeviceKey(req)) return res.status(401).json({ error: "Clave de dispositivo inválida." });
+
+  const { attemptId, answerIndex } = req.body || {};
+  const attempt = await QuestionAttempt.findByPk(attemptId);
+
+  if (!attempt || attempt.status !== "pending") {
+    return res.status(409).json({ error: "No hay una pregunta pendiente con ese id." });
+  }
+
+  const chosenOption = attempt.options[answerIndex] || null;
+  const correct = chosenOption !== null && chosenOption === attempt.correctAnswer;
+
+  await attempt.update({
+    studentAnswer: chosenOption,
+    correct,
+    status: "answered",
+    answeredAt: new Date(),
+  });
+
+  res.json({ ok: true, correct });
+});
+
 module.exports = {
   receiveHeartbeat,
   getRobotStatus,
@@ -224,4 +308,7 @@ module.exports = {
   getPauseFlag,
   setPauseFlag,
   getLiveSession,
+  sendQuestionToRobot,
+  getPendingQuestion,
+  submitAnswer,
 };

@@ -1,6 +1,8 @@
 require("dotenv").config();
 const { Sequelize } = require("sequelize");
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const sequelize = new Sequelize(
   process.env.DB_NAME,
   process.env.DB_USER,
@@ -14,6 +16,14 @@ const sequelize = new Sequelize(
       underscored: true,
       timestamps: true,
     },
+    dialectOptions: isProduction
+      ? {
+          ssl: {
+            require: true,
+            rejectUnauthorized: false,
+          },
+        }
+      : {},
   }
 );
 
