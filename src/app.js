@@ -14,12 +14,24 @@ const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
 
+// Configuración de CORS corregida para Vercel y producción
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: true, // Permite peticiones desde Vercel o cualquier frontend autorizado
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-device-key",
+      "X-Requested-With",
+    ],
   })
 );
+
+// Responder explícitamente a las peticiones Preflight (OPTIONS)
+app.options("*", cors());
+
 app.use(express.json());
 app.use(morgan(process.env.NODE_ENV === "development" ? "dev" : "combined"));
 
