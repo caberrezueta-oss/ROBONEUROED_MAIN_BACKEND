@@ -1,4 +1,4 @@
-const { Question, DesafioConfig } = require("../models");
+const { Question, DesafioConfig, QuestionAttempt } = require("../models");
 const asyncHandler = require("../utils/asyncHandler");
 
 const getQuestions = asyncHandler(async (req, res) => {
@@ -112,6 +112,20 @@ const updateDesafioConfig = asyncHandler(async (req, res) => {
   res.json({ config, active });
 });
 
+// Historial de preguntas respondidas por un estudiante específico.
+// Usado en StudentDetail.jsx para mostrar cuántas contestó bien/mal.
+const getStudentQuestionAttempts = asyncHandler(async (req, res) => {
+  const attempts = await QuestionAttempt.findAll({
+    where: { studentId: req.params.studentId, status: "answered" },
+    order: [["answeredAt", "DESC"]],
+  });
+
+  const correct = attempts.filter((a) => a.correct).length;
+  const incorrect = attempts.length - correct;
+
+  res.json({ total: attempts.length, correct, incorrect, attempts });
+});
+
 module.exports = {
   getQuestions,
   createQuestion,
@@ -120,4 +134,5 @@ module.exports = {
   getDesafioConfig,
   updateDesafioConfig,
   resolveActiveDesafio,
+  getStudentQuestionAttempts,
 };

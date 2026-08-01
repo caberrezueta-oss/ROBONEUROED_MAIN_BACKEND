@@ -6,6 +6,7 @@ const {
   updateQuestion,
   getDesafioConfig,
   updateDesafioConfig,
+  getStudentQuestionAttempts,
 } = require("../controllers/questions.controller");
 const { requireAuth } = require("../middleware/auth");
 
@@ -19,5 +20,6 @@ router.put("/:id", updateQuestion);
 router.delete("/:id", deleteQuestion);
 router.get("/desafio/config", getDesafioConfig);
 router.put("/desafio/config", updateDesafioConfig);
+router.get("/attempts/:studentId", getStudentQuestionAttempts);
 
 module.exports = router;
