@@ -101,7 +101,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   });
 });
 
-// Alimenta la gráfica "Progreso Atencional Semanal" del Dashboard
+// Alimenta la gráfica "Progreso Atencional Semanal" del Dashboard.
+// Devuelve el foco atencional agrupado por día Y por estudiante, para que
+// el frontend pueda dibujar una línea por cada estudiante en vez de un
+// promedio general que mezcla a todos.
 const getWeeklyAttention = asyncHandler(async (req, res) => {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -112,29 +115,39 @@ const getWeeklyAttention = asyncHandler(async (req, res) => {
   });
 
   const dayLabels = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+  // grouped[dia][estudiante] = [scores...]
   const grouped = {};
+  const studentNames = new Set();
 
   sessions.forEach((s) => {
     const dayIndex = new Date(s.date).getDay();
     const label = dayLabels[dayIndex];
-    if (!grouped[label]) {
-      grouped[label] = { day: label, atencion: [], alpha: [], beta: [] };
-    }
-    grouped[label].atencion.push(s.focusScore);
-    if (s.alphaWave != null) grouped[label].alpha.push(s.alphaWave);
-    if (s.betaWave != null) grouped[label].beta.push(s.betaWave);
+    const name = s.studentName || "Sin nombre";
+    studentNames.add(name);
+
+    if (!grouped[label]) grouped[label] = {};
+    if (!grouped[label][name]) grouped[label][name] = [];
+    grouped[label][name].push(s.focusScore);
   });
 
-  const avg = (arr) => (arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0);
+  const avg = (arr) => (arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null);
 
-  const result = Object.values(grouped).map((d) => ({
-    day: d.day,
-    atencion: avg(d.atencion),
-    alpha: avg(d.alpha),
-    beta: avg(d.beta),
-  }));
+  // Un renglón por día, con una columna por estudiante (promedio de ese
+  // día). Si un estudiante no tuvo sesión ese día, su valor queda null
+  // para que el gráfico no dibuje un punto falso en 0.
+  const data = Object.entries(grouped).map(([day, byStudent]) => {
+    const row = { day };
+    Object.entries(byStudent).forEach(([name, scores]) => {
+      row[name] = avg(scores);
+    });
+    return row;
+  });
 
-  res.json(result);
+  res.json({
+    data,
+    students: Array.from(studentNames),
+  });
 });
 
 module.exports = {
